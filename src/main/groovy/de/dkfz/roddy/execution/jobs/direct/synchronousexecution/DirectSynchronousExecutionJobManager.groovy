@@ -48,7 +48,6 @@ class DirectSynchronousExecutionJobManager extends BatchEuphoriaJobManager<Direc
         String command = "kill -s SIGKILL ${jobIDs*.id.join(" ")}"
         return executionService.execute(command, false)
     }
-
     @Override
     protected ExecutionResult executeStartHeldJobs(List<BEJobID> jobIDs) {
         String command = "kill -s SIGCONT ${jobIDs*.id.join(" ")}"
@@ -57,6 +56,11 @@ class DirectSynchronousExecutionJobManager extends BatchEuphoriaJobManager<Direc
 
     @Override
     void addToListOfStartedJobs(BEJob job) {}
+
+    @Override
+    boolean getDefaultForHoldJobsEnabled() {
+        return false
+    }
 
     @Override
     String getJobIdVariable() {

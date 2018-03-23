@@ -28,7 +28,7 @@ class RestResult extends ExecutionResult {
      * @param statusCode - http status code
      */
     RestResult(Header[] headers, String body, int statusCode) {
-        super(statusCode == 200, statusCode, [body], null)
+        super(statusCode, body, "", null)
         this.headers = headers
     }
 
@@ -42,7 +42,6 @@ class RestResult extends ExecutionResult {
     }
 
     String getBody() {
-        resultLines.join("\n")
+        standardOutput
     }
-
 }

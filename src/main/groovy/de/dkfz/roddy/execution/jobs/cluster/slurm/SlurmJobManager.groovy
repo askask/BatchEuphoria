@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2017 eilslabs.
+ *
+ * Distributed under the MIT License (license terms are at https://www.github.com/eilslabs/Roddy/LICENSE.txt).
+ */
+
+package de.dkfz.roddy.execution.jobs.cluster.slurm
+
 import com.google.common.collect.LinkedHashMultimap
 import de.dkfz.roddy.config.ResourceSet
 import de.dkfz.roddy.execution.BEExecutionService
@@ -10,12 +18,6 @@ import de.dkfz.roddy.execution.jobs.JobManagerOptions
 import de.dkfz.roddy.execution.jobs.JobState
 import de.dkfz.roddy.execution.jobs.cluster.ClusterJobManager
 import groovy.transform.CompileStatic
-
-/*
- * Copyright (c) 2017 eilslabs.
- *
- * Distributed under the MIT License (license terms are at https://www.github.com/eilslabs/Roddy/LICENSE.txt).
- */
 
 @CompileStatic
 class SlurmJobManager extends ClusterJobManager {

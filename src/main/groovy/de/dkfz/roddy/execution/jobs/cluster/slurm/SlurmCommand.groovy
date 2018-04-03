@@ -1,15 +1,19 @@
-import de.dkfz.roddy.config.JobLog
-import de.dkfz.roddy.execution.jobs.BEJob
-import de.dkfz.roddy.execution.jobs.BEJobID
-import de.dkfz.roddy.execution.jobs.BatchEuphoriaJobManager
-import de.dkfz.roddy.execution.jobs.SubmissionCommand
-
 /*
  * Copyright (c) 2017 eilslabs.
  *
  * Distributed under the MIT License (license terms are at https://www.github.com/eilslabs/Roddy/LICENSE.txt).
  */
 
+package de.dkfz.roddy.execution.jobs.cluster.slurm
+
+import de.dkfz.roddy.config.JobLog
+import de.dkfz.roddy.execution.jobs.BEJob
+import de.dkfz.roddy.execution.jobs.BEJobID
+import de.dkfz.roddy.execution.jobs.BatchEuphoriaJobManager
+import de.dkfz.roddy.execution.jobs.SubmissionCommand
+import groovy.transform.CompileStatic
+
+@CompileStatic
 class SlurmCommand extends SubmissionCommand {
 
     /**

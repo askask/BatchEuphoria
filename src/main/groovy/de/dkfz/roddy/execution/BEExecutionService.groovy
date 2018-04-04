@@ -32,5 +32,6 @@ interface BEExecutionService {
       */
     boolean isAvailable()
 
+    @Deprecated
     File queryWorkingDirectory()
 }

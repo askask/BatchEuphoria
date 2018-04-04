@@ -15,7 +15,7 @@ apply plugin: 'maven'
 
 group = "com.github.eilslabs"
 
-mainClassName = 'de.dkfz.roddy.BEIntegrationTestStarter'
+mainClassName = 'de.dkfz.be.cli.BEExecutor'
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
@@ -54,13 +54,12 @@ dependencies {
     testCompile 'com.google.guava:guava:23.0'
     compile 'org.slf4j:slf4j-api:1.7.25'
     compile group: 'org.apache.commons', name: 'commons-io', version: '1.3.2'
-    compile group: 'commons-codec', name: 'commons-codec', version: '1.9'
     compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.3'
-    compile group: 'commons-cli', name: 'commons-cli', version: '1.2'
     compile group: 'org.apache.commons', name: 'commons-text', version: '1.1'
     compile 'com.google.guava:guava:23.0'
     compile 'com.github.eilslabs:RoddyToolLib:executionresult-SNAPSHOT'
     // compile 'com.github.eilslabs:RoddyToolLib:0.0.3'
+    compile 'info.picocli:picocli:3.0.0-alpha-4'
 }
 
 task writePom {
@@ -104,10 +103,7 @@ task listJars {
 }
 
 
-task uberjar(type: Jar, dependsOn:[':compileJava',':compileGroovy']) {
-    from files(sourceSets.main.output.dirs)
-    from configurations.runtime.asFileTree.files.collect { zipTree(it) }
-
+task uberjar(type: Jar) {
     version = getVersionName()
 
     manifest {
@@ -115,6 +111,8 @@ task uberjar(type: Jar, dependsOn:[':compileJava',':compileGroovy']) {
         attributes 'Implementation-Version': version
     }
     exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
 }
 
 // Fix Gradle version

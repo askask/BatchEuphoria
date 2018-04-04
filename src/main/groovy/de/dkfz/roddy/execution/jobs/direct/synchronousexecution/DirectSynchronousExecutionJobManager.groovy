@@ -117,8 +117,9 @@ class DirectSynchronousExecutionJobManager extends BatchEuphoriaJobManager<Direc
             command.job.resetJobID(jobID)
             command.setJobID(jobID)
             res = executionService.execute(command)
-            if (!res.successful)
-                throw new BEException("Execution of Job ${jobID} failed with exit code ${res.exitCode} and message ${res.resultLines}")
+            if (!res.successful) {
+                throw new BEException(command.toBashCommandString(), res.standardError, res.exitCode)
+            }
         }
 
         jobResult = new BEJobResult(command, job, res, job.tool, job.parameters, job.parentJobs as List<BEJob>)

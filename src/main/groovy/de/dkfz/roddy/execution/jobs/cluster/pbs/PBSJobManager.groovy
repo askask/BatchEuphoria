@@ -89,8 +89,7 @@ class PBSJobManager extends ClusterJobManager<PBSCommand> {
         Map<BEJobID, JobState> result = [:]
 
         if (!er.successful) {
-            if (strictMode) // Do not pull this into the outer if! The else branch needs to be executed if er.successful is true
-                throw new BEException("The execution of ${queryCommand} failed.", null)
+            throw new BEException(queryCommand.toString(), er.standardError, er.exitCode)
         } else {
             if (resultLines.size() > 2) {
 
@@ -174,8 +173,8 @@ class PBSJobManager extends ClusterJobManager<PBSCommand> {
 
         if (er != null && er.successful) {
             queriedExtendedStates = this.processQstatOutput(er.resultLines.join("\n"))
-        }else{
-            throw new BEException("Extended job states couldn't be retrieved. \n Returned status code:${er.exitCode} \n result:${er.resultLines}")
+        } else {
+            throw new BEException(qStatCommand.toString(), er.standardError, er.exitCode)
         }
         return queriedExtendedStates
     }

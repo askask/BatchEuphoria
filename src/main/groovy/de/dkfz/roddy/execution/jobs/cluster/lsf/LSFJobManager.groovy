@@ -17,6 +17,7 @@ import groovy.json.JsonSlurper
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.regex.Matcher
 
 /**
  * Factory for the management of LSF cluster systems.
@@ -96,14 +97,13 @@ class LSFJobManager extends AbstractLSFJobManager {
         }
 
         ExecutionResult er = executionService.execute(queryCommand.toString())
-        List<String> resultLines = er.resultLines
+        String output = er.standardOutput
 
         Map<BEJobID, Map<String, Object>> result = [:]
 
         if (er.successful) {
-            if (resultLines.size() >= 1) {
-                String rawJson = resultLines.join("\n")
-                Object parsedJson = new JsonSlurper().parseText(rawJson)
+            if (!output.isEmpty()) {
+                Object parsedJson = new JsonSlurper().parseText(output)
                 List records = (List) parsedJson.getAt("RECORDS")
                 records.each {
                     BEJobID jobID = new BEJobID(it["JOBID"] as String)
@@ -112,8 +112,7 @@ class LSFJobManager extends AbstractLSFJobManager {
             }
 
         } else {
-            String error = "Job status couldn't be updated. \n command: ${queryCommand} \n status code: ${er.exitCode} \n result: ${er.resultLines}"
-            throw new BEException(error)
+            throw new BEException(queryCommand.toString(), er.standardError, er.exitCode)
         }
         return result
     }
@@ -230,12 +229,13 @@ class LSFJobManager extends AbstractLSFJobManager {
 
     @Override
     String parseJobID(String commandOutput) {
-        String result = commandOutput.find(/<[0-9]+>/)
         //ToDo 'Group <resUsers>: Pending job threshold reached. Retrying in 60 seconds...'
-        if (result == null)
-            throw new BEException("Could not parse raw ID from: '${commandOutput}'")
-        String exID = result.substring(1, result.length() - 1)
-        return exID
+        Matcher matcher = commandOutput =~ /<(?<id>[0-9]+)>/
+        if (matcher) {
+            return matcher.group("id")
+        } else {
+            throw new BEException("Could not parse job ID from: '${commandOutput}'")
+        }
     }
 
     @Override

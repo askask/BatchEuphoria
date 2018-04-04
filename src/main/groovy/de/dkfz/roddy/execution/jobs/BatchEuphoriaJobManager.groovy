@@ -112,7 +112,7 @@ abstract class BatchEuphoriaJobManager<C extends Command> {
         if (jobIds) {
             ExecutionResult executionResult = executeStartHeldJobs(jobIds)
             if (!executionResult.successful) {
-                String msg = "Held jobs couldn't be started.\n  status code: ${executionResult.exitCode}\n  result: ${executionResult.resultLines}"
+                String msg = "Held jobs couldn't be started.\n  status code: ${executionResult.exitCode}\n  result: ${executionResult.standardError}"
                 throw new BEException(msg)
             }
         }
@@ -129,7 +129,7 @@ abstract class BatchEuphoriaJobManager<C extends Command> {
             if (executionResult.successful) {
                 jobs.each { BEJob job -> job.jobState = JobState.ABORTED }
             } else {
-                String msg = "Job couldn't be aborted.\n  status code: ${executionResult.exitCode}\n  result: ${executionResult.resultLines}"
+                String msg = "Job couldn't be aborted.\n  status code: ${executionResult.exitCode}\n  result: ${executionResult.standardError}"
                 throw new BEException(msg)
             }
         }
@@ -300,9 +300,9 @@ abstract class BatchEuphoriaJobManager<C extends Command> {
         if (res.successful) {
             String exID
             try {
-                exID = parseJobID(res.resultLines.join("\n"))
+                exID = parseJobID(res.standardOutput)
             } catch (BEException ex) {
-                throw new BEException("Full input was: '${res.resultLines.join("\n")}", ex)
+                throw new BEException("Could not parse job ID from: '${res.standardOutput}", ex)
             }
             def job = command.getJob()
             BEJobID jobID = new BEJobID(exID)
@@ -317,7 +317,7 @@ abstract class BatchEuphoriaJobManager<C extends Command> {
             def job = command.getJob()
             jobResult = new BEJobResult(command, job, res, job.tool, job.parameters, job.parentJobs as List<BEJob>)
             job.setRunResult(jobResult)
-            throw new BEException("Job ${job.jobName ?: "NA"} could not be started. \n Returned status code:${res.exitCode} \n result:${res.resultLines}")
+            throw new BEException(command.toBashCommandString(), res.standardError, res.exitCode)
         }
         return jobResult
     }

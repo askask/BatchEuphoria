@@ -15,6 +15,10 @@ class BEException extends Exception {
         super(message)
     }
 
+    BEException(String command, String error, int exitCode) {
+        super("Execution of ${command} failed (${exitCode}): ${error}")
+    }
+
     BEException(String message, Throwable cause) {
         super(message, cause)
     }

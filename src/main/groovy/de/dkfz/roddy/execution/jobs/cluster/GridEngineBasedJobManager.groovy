@@ -174,9 +174,13 @@ abstract class GridEngineBasedJobManager<C extends Command> extends ClusterJobMa
             } catch (Exception exp) {
                 throw new BEException("Job ID '${jobIdRaw}' could not be transformed to BEJobID ")
             }
-
-            List<String> jobDependencies = job["depend"] ? (job["depend"] as  String).find("afterok.*")?.findAll(/(\d+).(\w+)/) { fullMatch, String beforeDot, afterDot -> return beforeDot } : null
-            GenericJobInfo gj = new GenericJobInfo(job["Job_Name"] as String ?: null, null, jobID, null, jobDependencies)
+            List<String> jobDependencies = (job["depend"] as GPathResult).isEmpty() ?
+                    (job["depend"] as  String).find("afterok.*")?.findAll(/(\d+).(\w+)/) {
+                        fullMatch, String beforeDot, afterDot -> return beforeDot
+                    } :
+                    null
+            String jobName = job["Job_Name"] as String ?: null
+            GenericJobInfo gj = new GenericJobInfo(jobName, null, jobID, null, jobDependencies)
 
             BufferValue mem = null
             Integer cores
@@ -185,30 +189,30 @@ abstract class GridEngineBasedJobManager<C extends Command> extends ClusterJobMa
             String additionalNodeFlag
 
             def resourceList = job["Resource_List"]
-            String resourcesListMem = resourceList["mem"] as String
-            String resourcesListNoDect = resourceList["nodect"] as String
-            String resourcesListNodes = resourceList["nodes"] as String
-            String resourcesListWalltime = resourceList["walltime"] as String
-            if (resourcesListMem)
-                mem = catchAndLogExceptions { new BufferValue(Integer.valueOf(resourcesListMem.find(/(\d+)/)), BufferUnit.valueOf(resourcesListMem[-2])) }
-            if (resourcesListNoDect)
-                nodes = catchAndLogExceptions { Integer.valueOf(resourcesListNoDect) }
-            if (resourcesListNodes)
-                cores = catchAndLogExceptions { Integer.valueOf(resourcesListNodes.find("ppn=.*").find(/(\d+)/)) }
-            if (resourcesListNodes)
-                additionalNodeFlag = catchAndLogExceptions { resourcesListNodes.find(/(\d+):(\.*)/) { fullMatch, nCores, feature -> return feature } }
-            if (resourcesListWalltime)
-                walltime = catchAndLogExceptions { new TimeUnit(resourcesListWalltime) }
+            String resourcesListMem = resourceList["mem"]
+            String resourcesListNoDect = resourceList["nodect"]
+            String resourcesListNodes = resourceList["nodes"]
+            String resourcesListWalltime = resourceList["walltime"]
+            if (!(resourcesListMem as GPathResult).isEmpty())
+                mem = catchAndLogExceptions { new BufferValue(Integer.valueOf((resourcesListMem as String).find(/(\d+)/)), BufferUnit.valueOf((resourcesListMem as String)[-2])) }
+            if (!(resourcesListNoDect as GPathResult).isEmpty())
+                nodes = catchAndLogExceptions { Integer.valueOf(resourcesListNoDect as String) }
+            if (!(resourcesListNodes as GPathResult).isEmpty())
+                cores = catchAndLogExceptions { Integer.valueOf((resourcesListNodes as String).find("ppn=.*").find(/(\d+)/)) }
+            if (!(resourcesListNodes as GPathResult).isEmpty())
+                additionalNodeFlag = catchAndLogExceptions { (resourcesListNodes as String).find(/(\d+):(\.*)/) { fullMatch, nCores, feature -> return feature } }
+            if (!(resourcesListWalltime as GPathResult).isEmpty())
+                walltime = catchAndLogExceptions { new TimeUnit(resourcesListWalltime as String) }
 
             BufferValue usedMem = null
             TimeUnit usedWalltime = null
             def resourcesUsed = job["resources_used"]
-            String resourcedUsedMem = resourcesUsed["mem"] as String
-            String resourcesUsedWalltime = resourcesUsed["walltime"] as String
-            if (resourcedUsedMem)
-                catchAndLogExceptions { usedMem = new BufferValue(Integer.valueOf(resourcedUsedMem.find(/(\d+)/)), BufferUnit.valueOf(resourcedUsedMem[-2])) }
-            if (resourcesUsedWalltime)
-                catchAndLogExceptions { usedWalltime = new TimeUnit(resourcesUsedWalltime) }
+            String resourcedUsedMem = resourcesUsed["mem"]
+            String resourcesUsedWalltime = resourcesUsed["walltime"]
+            if (!(resourcedUsedMem as GPathResult).isEmpty())
+                catchAndLogExceptions { usedMem = new BufferValue(Integer.valueOf((resourcedUsedMem as String).find(/(\d+)/)), BufferUnit.valueOf((resourcedUsedMem as String)[-2])) }
+            if (!(resourcesUsedWalltime as GPathResult).isEmpty())
+                catchAndLogExceptions { usedWalltime = new TimeUnit(resourcesUsedWalltime as String) }
 
             gj.setAskedResources(new ResourceSet(null, mem, cores, nodes, walltime, null, job["queue"] as String ?: null, additionalNodeFlag))
             gj.setUsedResources(new ResourceSet(null, usedMem, null, null, usedWalltime, null, job["queue"] as String ?: null, null))

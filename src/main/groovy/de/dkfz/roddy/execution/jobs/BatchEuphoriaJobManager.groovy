@@ -12,6 +12,7 @@ import de.dkfz.roddy.execution.BEExecutionService
 import de.dkfz.roddy.execution.io.ExecutionResult
 import groovy.transform.CompileStatic
 
+import java.lang.reflect.Constructor
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -25,6 +26,15 @@ import java.util.concurrent.TimeoutException
  */
 @CompileStatic
 abstract class BatchEuphoriaJobManager<C extends Command> {
+
+    static BatchEuphoriaJobManager create(ClusterScheduler cluster, BEExecutionService executionService, JobManagerOptions options) {
+        Constructor<?> c = Class.forName(cluster.className).getConstructor(BEExecutionService, JobManagerOptions)
+        println c
+        println executionService
+        println options
+
+        return (BatchEuphoriaJobManager) c.newInstance(executionService, options)
+    }
 
     protected final BEExecutionService executionService
 

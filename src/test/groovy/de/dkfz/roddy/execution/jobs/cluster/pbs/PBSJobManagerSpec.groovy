@@ -216,7 +216,7 @@ Output retained on that host in: /var/spool/torque/undelivered/4564045.pbsserver
         <init_work_dir>/home/bq_otp-data</init_work_dir>'''
     }
 
-    void "test, finsihed, with newline"() {
+    void "test, finished, with newline"() {
         when:
         Map<BEJobID, GenericJobInfo> result = manager.processQstatOutput(xmlWithNewLine)
 

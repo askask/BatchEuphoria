@@ -13,6 +13,7 @@ import de.dkfz.roddy.execution.io.ExecutionResult
 import de.dkfz.roddy.execution.jobs.*
 import de.dkfz.roddy.tools.*
 import groovy.json.JsonSlurper
+import groovy.transform.CompileStatic
 
 import java.time.Duration
 import java.time.LocalDateTime
@@ -23,7 +24,7 @@ import java.time.format.DateTimeFormatter
  *
  *
  */
-@groovy.transform.CompileStatic
+@CompileStatic
 class LSFJobManager extends AbstractLSFJobManager {
 
     private static final String LSF_COMMAND_QUERY_STATES = "bjobs -a -o -hms -json \"jobid job_name stat user queue " +
@@ -40,7 +41,7 @@ class LSFJobManager extends AbstractLSFJobManager {
     Map<BEJobID, GenericJobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
         Map<BEJobID, GenericJobInfo> queriedExtendedStates = [:]
         for (BEJobID id : jobIds) {
-            Map<String, Object> jobDetails = runBjobs([id]).get(id)
+            Map<String, String> jobDetails = runBjobs([id]).get(id)
             queriedExtendedStates.put(id, queryJobInfo(jobDetails))
         }
         return queriedExtendedStates
@@ -85,7 +86,7 @@ class LSFJobManager extends AbstractLSFJobManager {
 
     }
 
-    private Map<BEJobID, Map<String, Object>> runBjobs(List<BEJobID> jobIDs) {
+    private Map<BEJobID, Map<String, String>> runBjobs(List<BEJobID> jobIDs) {
         StringBuilder queryCommand = new StringBuilder(getQueryCommand())
 
         // user argument must be passed before the job IDs
@@ -99,7 +100,7 @@ class LSFJobManager extends AbstractLSFJobManager {
         ExecutionResult er = executionService.execute(queryCommand.toString())
         List<String> resultLines = er.resultLines
 
-        Map<BEJobID, Map<String, Object>> result = [:]
+        Map<BEJobID, Map<String, String>> result = [:]
 
         if (er.successful) {
             if (resultLines.size() >= 1) {
@@ -108,7 +109,8 @@ class LSFJobManager extends AbstractLSFJobManager {
                 List records = (List) parsedJson.getAt("RECORDS")
                 records.each {
                     BEJobID jobID = new BEJobID(it["JOBID"] as String)
-                    result.put(jobID, it as Map<String, Object>)
+                    Map<String, String> values = (it as Map<String, Object>).collectEntries{ k, v -> [(k as String): v as String] } as Map<String, String>
+                    result.put(jobID, values)
                 }
             }
 
@@ -131,80 +133,109 @@ class LSFJobManager extends AbstractLSFJobManager {
     /**
      * Used by @getJobDetails to set JobInfo
      */
-    private GenericJobInfo queryJobInfo(Map<String, Object> jobResult) {
+    private JobInfo queryJobInfo(Map<String, String> jobResult) {
+        BEJobID jobID = new BEJobID(jobResult["JOBID"])
 
-        GenericJobInfo jobInfo
-        BEJobID jobID
-        try{
-            jobID = new BEJobID(jobResult["JOBID"] as String)
-        }catch (Exception exp){
-            throw new BEException("Job ID '${jobResult["JOBID"]}' could not be transformed to BEJobID ")
-        }
-
-        List<String> dependIDs = ((String) jobResult["DEPENDENCY"])? ((String) jobResult["DEPENDENCY"]).tokenize(/&/).collect { it.find(/\d+/) } : null
-        jobInfo = new GenericJobInfo(jobResult["JOB_NAME"] as String ?: null, jobResult["COMMAND"] as String ? new File(jobResult["COMMAND"] as String): null, jobID, null, dependIDs)
-
+        Set<BEJobID> dependencies = jobResult["DEPENDENCY"] ?
+                jobResult["DEPENDENCY"].tokenize(/&/).collect { new BEJobID(it.find(/\d+/)) } :
+                null
         String queue = jobResult["QUEUE"] ?: null
         Duration runTime = catchAndLogExceptions {
             jobResult["RUN_TIME"] ? parseColonSeparatedHHMMSSDuration(jobResult["RUN_TIME"] as String) : null
         }
         BufferValue swap = catchAndLogExceptions {
-            jobResult["SWAP"] ? new BufferValue((jobResult["SWAP"] as String).find("\\d+"), BufferUnit.m) : null
+            jobResult["SWAP"] ? new BufferValue((jobResult["SWAP"]).find("\\d+"), BufferUnit.m) : null
         }
         BufferValue memory = catchAndLogExceptions {
-            String unit = (jobResult["MAX_MEM"] as String).find("[a-zA-Z]+")
+            String unit = (jobResult["MAX_MEM"]).find("[a-zA-Z]+")
             BufferUnit bufferUnit
             if (unit == "Gbytes")
                 bufferUnit = BufferUnit.g
             else
                 bufferUnit = BufferUnit.m
-            jobResult["MAX_MEM"] ? new BufferValue((jobResult["MAX_MEM"] as String).find("([0-9]*[.])?[0-9]+"), bufferUnit) : null
+            jobResult["MAX_MEM"] ? new BufferValue((jobResult["MAX_MEM"]).find("([0-9]*[.])?[0-9]+"), bufferUnit) : null
         }
         Duration runLimit = catchAndLogExceptions {
-            jobResult["RUNTIMELIMIT"] ? parseColonSeparatedHHMMSSDuration(jobResult["RUNTIMELIMIT"] as String) : null
+            jobResult["RUNTIMELIMIT"] ? parseColonSeparatedHHMMSSDuration(jobResult["RUNTIMELIMIT"]) : null
         }
-        Integer nodes = catchAndLogExceptions { jobResult["SLOTS"] ? jobResult["SLOTS"] as Integer : null }
 
-        ResourceSet usedResources = new ResourceSet(memory, null, nodes, runTime, null, queue, null)
-        jobInfo.setUsedResources(usedResources)
+        ResourceSet usedResources = new ResourceSet(
+                memory,
+                null,
+                catchAndLogExceptions { jobResult["SLOTS"] ? jobResult["SLOTS"] as Integer : null },
+                runTime,
+                null,
+                queue,
+                null
+        )
 
-        ResourceSet askedResources = new ResourceSet(null, null, null, runLimit, null, queue, null)
-        jobInfo.setAskedResources(askedResources)
+        ResourceSet askedResources = new ResourceSet(
+                null,
+                null,
+                null,
+                runLimit,
+                null,
+                queue,
+                null
+        )
 
-        jobInfo.setUser(jobResult["USER"] as String ?: null)
-        jobInfo.setDescription(jobResult["JOB_DESCRIPTION"] as String ?: null)
-        jobInfo.setProjectName(jobResult["PROJ_NAME"] as String ?: null)
-        jobInfo.setJobGroup(jobResult["JOB_GROUP"] as String ?: null)
-        jobInfo.setPriority(jobResult["JOB_PRIORITY"] as String ?: null)
-        jobInfo.setPidStr(jobResult["PIDS"] as String ? (jobResult["PIDS"] as String).split(",").toList() : null)
-        jobInfo.setJobState(parseJobState(jobResult["STAT"] as String))
-        jobInfo.setExitCode(jobInfo.jobState == JobState.COMPLETED_SUCCESSFUL ? 0 : (jobResult["EXIT_CODE"] ? Integer.valueOf(jobResult["EXIT_CODE"] as String) : null))
-        jobInfo.setSubmissionHost(jobResult["FROM_HOST"] as String ?: null)
-        jobInfo.setExecutionHosts(jobResult["EXEC_HOST"] as String ? (jobResult["EXEC_HOST"] as String).split(":").toList() : null)
-        catchAndLogExceptions {
-            jobInfo.setCpuTime(jobResult["CPU_USED"] ? parseColonSeparatedHHMMSSDuration(jobResult["CPU_USED"] as String) : null)
-        }
-        jobInfo.setRunTime(runTime)
-        jobInfo.setUserGroup(jobResult["USER_GROUP"] as String ?: null)
-        jobInfo.setCwd(jobResult["SUB_CWD"] as String ?: null)
-        jobInfo.setPendReason(jobResult["PEND_REASON"] as String ?: null)
-        jobInfo.setExecCwd(jobResult["EXEC_CWD"] as String ?: null)
-        jobInfo.setLogFile(getBjobsFile(jobResult["OUTPUT_FILE"] as String, jobID, "out"))
-        jobInfo.setErrorLogFile(getBjobsFile(jobResult["ERROR_FILE"] as String, jobID, "err"))
-        jobInfo.setInputFile(jobResult["INPUT_FILE"] ? new File(jobResult["INPUT_FILE"] as String) : null)
-        jobInfo.setResourceReq(jobResult["EFFECTIVE_RESREQ"] as String ?: null)
-        jobInfo.setExecHome(jobResult["EXEC_HOME"] as String ?: null)
-
-        if (jobResult["SUBMIT_TIME"])
-            catchAndLogExceptions { jobInfo.setSubmitTime(parseTime(jobResult["SUBMIT_TIME"] as String)) }
-        if (jobResult["START_TIME"])
-            catchAndLogExceptions { jobInfo.setStartTime(parseTime(jobResult["START_TIME"] as String)) }
-        if (jobResult["FINISH_TIME"])
-            catchAndLogExceptions {
-                jobInfo.setEndTime(parseTime((jobResult["FINISH_TIME"] as String).substring(0, (jobResult["FINISH_TIME"] as String).length() - 2)))
-            }
-
-        return jobInfo
+        return new JobInfo(
+                jobResult["JOB_NAME"] ?: null,
+                jobResult["COMMAND"] ? new File(jobResult["COMMAND"]) : null,
+                jobID,
+                null,
+                dependencies,
+                askedResources,
+                usedResources,
+                jobResult["SUBMIT_TIME"] ?
+                        catchAndLogExceptions { parseTime(jobResult["SUBMIT_TIME"]) } :
+                        null,
+                null,
+                jobResult["START_TIME"] ?
+                        catchAndLogExceptions { parseTime(jobResult["START_TIME"]) } :
+                        null,
+                jobResult["FINISH_TIME"] ?
+                        catchAndLogExceptions { parseTime((jobResult["FINISH_TIME"]).substring(0, (jobResult["FINISH_TIME"] as String).length() - 2)) } :
+                        null,
+                jobResult["EXEC_HOST"] ? (jobResult["EXEC_HOST"]).split(":").toList() : null,
+                jobResult["FROM_HOST"] ?: null,
+                jobResult["JOB_PRIORITY"] ?: null,
+                getBjobsFile(jobResult["OUTPUT_FILE"], jobID, "out"),
+                getBjobsFile(jobResult["ERROR_FILE"], jobID, "err"),
+                jobResult["INPUT_FILE"] ? new File(jobResult["INPUT_FILE"]) : null,
+                jobResult["USER"] ?: null,
+                jobResult["USER_GROUP"] ?: null,
+                jobResult["EFFECTIVE_RESREQ"] ?: null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                parseJobState(jobResult["STAT"]),
+                null,
+                null,
+                jobResult["PEND_REASON"] ?: null,
+                jobResult["EXEC_HOME"] ?: null,
+                null,
+                jobResult["PIDS"] ? (jobResult["PIDS"]).split(",").toList() : null,
+                null,
+                parseJobState(jobResult["STAT"]) == JobState.COMPLETED_SUCCESSFUL ? 0 :
+                        (jobResult["EXIT_CODE"] ? Integer.valueOf(jobResult["EXIT_CODE"]) : null),
+                jobResult["JOB_GROUP"] ?: null,
+                jobResult["JOB_DESCRIPTION"] ?: null,
+                jobResult["EXEC_CWD"] ?: null,
+                null,
+                jobResult["SUB_CWD"] ?: null,
+                jobResult["PROJ_NAME"] ?: null,
+                jobResult["CPU_USED"] ? parseColonSeparatedHHMMSSDuration(jobResult["CPU_USED"]) : null,
+                runTime,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+        )
     }
 
     private File getBjobsFile(String s, BEJobID jobID, String type) {

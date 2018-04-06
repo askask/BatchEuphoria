@@ -4,15 +4,15 @@
  * Distributed under the MIT License (license terms are at https://www.github.com/eilslabs/Roddy/LICENSE.txt).
  */
 
-package de.dkfz.roddy
+package de.dkfz.roddy.execution.jobs
 
 import de.dkfz.roddy.execution.jobs.cluster.lsf.LSFJobManager
 import de.dkfz.roddy.execution.jobs.cluster.lsf.rest.LSFRestJobManager
 import de.dkfz.roddy.execution.jobs.cluster.pbs.PBSJobManager
 import de.dkfz.roddy.execution.jobs.cluster.sge.SGEJobManager
 import de.dkfz.roddy.execution.jobs.direct.synchronousexecution.DirectSynchronousExecutionJobManager
-import de.dkfz.roddy.execution.jobs.BatchEuphoriaJobManager
 import groovy.transform.CompileStatic
+import groovy.transform.PackageScope
 
 /**
  * A list of available cluster systems.
@@ -20,20 +20,17 @@ import groovy.transform.CompileStatic
  * Created by heinold on 27.03.17.
  */
 @CompileStatic
-enum AvailableClusterSystems {
-    direct(DirectSynchronousExecutionJobManager.class), pbs(PBSJobManager.class), sge(SGEJobManager.class), slurm("de.dkfz.eilslabs.batcheuphoria.execution.cluster.slurm.SlurmJobManager"), lsf(LSFJobManager.class), lsfrest(LSFRestJobManager.class)
+enum ClusterScheduler {
+    DIRECT(DirectSynchronousExecutionJobManager),
+    PBS(PBSJobManager),
+    SGE(SGEJobManager),
+    SLURM(SGEJobManager),
+    LSF(LSFJobManager),
+    LSF_REST(LSFRestJobManager)
 
-    final String className
+    @PackageScope final String className
 
-    AvailableClusterSystems(String className) {
-        this.className = className
-    }
-
-    AvailableClusterSystems(Class cls) {
+    ClusterScheduler(Class<? extends BatchEuphoriaJobManager> cls) {
         this.className = cls.name
-    }
-
-    Class<BatchEuphoriaJobManager> loadClass() {
-        return getClass().getClassLoader().loadClass(className) as Class<BatchEuphoriaJobManager>
     }
 }

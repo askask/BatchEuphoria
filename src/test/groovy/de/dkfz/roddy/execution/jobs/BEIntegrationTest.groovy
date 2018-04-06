@@ -6,7 +6,6 @@
 
 package de.dkfz.roddy.execution.jobs
 
-import de.dkfz.roddy.AvailableClusterSystems
 import de.dkfz.roddy.BEException
 import de.dkfz.roddy.TestExecutionService
 import de.dkfz.roddy.config.JobLog
@@ -30,8 +29,8 @@ import java.time.Duration
 @CompileStatic
 class BEIntegrationTest {
     static Properties properties
-    static Map<AvailableClusterSystems, BEExecutionService> eServicesPerSystem = [:]
-    static Map<AvailableClusterSystems, Boolean> testScriptWritten = [:]
+    static Map<ClusterScheduler, BEExecutionService> eServicesPerSystem = [:]
+    static Map<ClusterScheduler, Boolean> testScriptWritten = [:]
     static String testScript = "ls"
     static File batchEuphoriaTestScript
     static JobLog logFile
@@ -52,12 +51,12 @@ class BEIntegrationTest {
             logFile = JobLog.none()
     }
 
-    static synchronized BEExecutionService getExecutionServiceFor(AvailableClusterSystems system) {
+    static synchronized BEExecutionService getExecutionServiceFor(ClusterScheduler system) {
         if (!eServicesPerSystem[system]) {
             println(properties)
             def account = properties["${system}.account".toString()] as String
             def host = properties["${system}.host".toString()] as String
-            if (system == AvailableClusterSystems.lsfrest)
+            if (system == ClusterScheduler.LSF_REST)
                 eServicesPerSystem[system] = new RestExecutionService(host, account, properties."lsfrest.password" as String)
             else
                 eServicesPerSystem[system] = new TestExecutionService(account, host)
@@ -66,17 +65,14 @@ class BEIntegrationTest {
         return eServicesPerSystem[system]
     }
 
-    static BatchEuphoriaJobManager createJobManagerFor(AvailableClusterSystems system) {
-
-        return system.loadClass().getDeclaredConstructor(BEExecutionService, JobManagerOptions)
-                .newInstance(getExecutionServiceFor(system),
-                JobManagerOptions.create()
-                        .setCreateDaemon(false)
-                        .build()
-        ) as BatchEuphoriaJobManager
+    static BatchEuphoriaJobManager createJobManagerFor(ClusterScheduler scheduler) {
+        JobManagerOptions options = JobManagerOptions.create()
+                .setCreateDaemon(false)
+                .build()
+        return BatchEuphoriaJobManager.create(scheduler, getExecutionServiceFor(scheduler), options)
     }
 
-    void checkAndPossiblyRunJobWithPipedScript(AvailableClusterSystems system) {
+    void checkAndPossiblyRunJobWithPipedScript(ClusterScheduler system) {
         if (!(properties["${system}.host".toString()] != "" && properties["${system}.account".toString()] != "")) return
 
         BatchEuphoriaJobManager jobManager = createJobManagerFor(system)
@@ -84,7 +80,7 @@ class BEIntegrationTest {
         jobTest(jobManager, [testJobWithPipedScript])
     }
 
-    void checkAndPossiblyRunMultipleJobsWithPipedScript(AvailableClusterSystems system) {
+    void checkAndPossiblyRunMultipleJobsWithPipedScript(ClusterScheduler system) {
         if (!(properties["${system}.host".toString()] != "" && properties["${system}.account".toString()] != "")) return
 
         BatchEuphoriaJobManager jobManager = createJobManagerFor(system)
@@ -94,7 +90,7 @@ class BEIntegrationTest {
         jobTest(jobManager, [testParent, testJobChild1, testJobChild2])
     }
 
-    void checkAndPossiblyRunJobWithFile(AvailableClusterSystems system) {
+    void checkAndPossiblyRunJobWithFile(ClusterScheduler system) {
         if (!(properties["${system}.host".toString()] != "" && properties["${system}.account".toString()] != "" && properties["remoteToolPath"] != "")) return
 
         prepareTestScript(system)
@@ -103,7 +99,7 @@ class BEIntegrationTest {
         jobTest(jobManager, [testJobWithFile])
     }
 
-    void checkAndPossiblyRunMultipleJobsWithFile(AvailableClusterSystems system) {
+    void checkAndPossiblyRunMultipleJobsWithFile(ClusterScheduler system) {
         if (!(properties["${system}.host".toString()] != "" && properties["${system}.account".toString()] != "" && properties["remoteToolPath"] != "")) return
 
         prepareTestScript(system)
@@ -167,7 +163,7 @@ class BEIntegrationTest {
                     "Make sure, that your job system is working properly.")
     }
 
-    static synchronized void prepareTestScript(AvailableClusterSystems system) {
+    static synchronized void prepareTestScript(ClusterScheduler system) {
         if (testScriptWritten[system]) return
 
         batchEuphoriaTestScript = new File(properties."remoteToolPath" as String)
@@ -183,22 +179,22 @@ class BEIntegrationTest {
 
     @Test
     void testLsfMultipleJobsWithPipedScript() {
-        checkAndPossiblyRunMultipleJobsWithPipedScript(AvailableClusterSystems.lsf)
+        checkAndPossiblyRunMultipleJobsWithPipedScript(ClusterScheduler.LSF)
     }
 
     @Test
     void testLsfMultipleJobsWithFile() {
-        checkAndPossiblyRunMultipleJobsWithFile(AvailableClusterSystems.lsf)
+        checkAndPossiblyRunMultipleJobsWithFile(ClusterScheduler.LSF)
     }
 
     @Test
     void testLsfJobWithFile() {
-        checkAndPossiblyRunJobWithFile(AvailableClusterSystems.lsf)
+        checkAndPossiblyRunJobWithFile(ClusterScheduler.LSF)
     }
 
     @Test
     void testLsfJobWithPipedScript() {
-        checkAndPossiblyRunJobWithPipedScript(AvailableClusterSystems.lsf)
+        checkAndPossiblyRunJobWithPipedScript(ClusterScheduler.LSF)
     }
 
     /**
@@ -206,22 +202,22 @@ class BEIntegrationTest {
      */
     @Test
     void testPbsMultipleJobsWithPipedScript() {
-        checkAndPossiblyRunMultipleJobsWithPipedScript(AvailableClusterSystems.pbs)
+        checkAndPossiblyRunMultipleJobsWithPipedScript(ClusterScheduler.PBS)
     }
 
     @Test
     void testPbsMultipleJobsWithFile() {
-        checkAndPossiblyRunMultipleJobsWithFile(AvailableClusterSystems.pbs)
+        checkAndPossiblyRunMultipleJobsWithFile(ClusterScheduler.PBS)
     }
 
     @Test
     void testPbsJobWithFile() {
-        checkAndPossiblyRunJobWithFile(AvailableClusterSystems.pbs)
+        checkAndPossiblyRunJobWithFile(ClusterScheduler.PBS)
     }
 
     @Test
     void testPbsJobWithPipedScript() {
-        checkAndPossiblyRunJobWithPipedScript(AvailableClusterSystems.pbs)
+        checkAndPossiblyRunJobWithPipedScript(ClusterScheduler.PBS)
     }
 
     /**
@@ -229,22 +225,22 @@ class BEIntegrationTest {
      */
     @Test
     void testSgeMultipleJobsWithPipedScript() {
-        checkAndPossiblyRunMultipleJobsWithPipedScript(AvailableClusterSystems.sge)
+        checkAndPossiblyRunMultipleJobsWithPipedScript(ClusterScheduler.SGE)
     }
 
     @Test
     void testSgeMultipleJobsWithFile() {
-        checkAndPossiblyRunMultipleJobsWithFile(AvailableClusterSystems.sge)
+        checkAndPossiblyRunMultipleJobsWithFile(ClusterScheduler.SGE)
     }
 
     @Test
     void testSgeJobWithFile() {
-        checkAndPossiblyRunJobWithFile(AvailableClusterSystems.sge)
+        checkAndPossiblyRunJobWithFile(ClusterScheduler.SGE)
     }
 
     @Test
     void testSgeJobWithPipedScript() {
-        checkAndPossiblyRunJobWithPipedScript(AvailableClusterSystems.sge)
+        checkAndPossiblyRunJobWithPipedScript(ClusterScheduler.SGE)
     }
 
     /**
@@ -252,22 +248,22 @@ class BEIntegrationTest {
      */
     @Test
     void testSlurmMultipleJobsWithPipedScript() {
-        checkAndPossiblyRunMultipleJobsWithPipedScript(AvailableClusterSystems.slurm)
+        checkAndPossiblyRunMultipleJobsWithPipedScript(ClusterScheduler.SLURM)
     }
 
     @Test
     void testSlurmMultipleJobsWithFile() {
-        checkAndPossiblyRunMultipleJobsWithFile(AvailableClusterSystems.slurm)
+        checkAndPossiblyRunMultipleJobsWithFile(ClusterScheduler.SLURM)
     }
 
     @Test
     void testSlurmJobWithFile() {
-        checkAndPossiblyRunJobWithFile(AvailableClusterSystems.slurm)
+        checkAndPossiblyRunJobWithFile(ClusterScheduler.SLURM)
     }
 
     @Test
     void testSlurmJobWithPipedScript() {
-        checkAndPossiblyRunJobWithPipedScript(AvailableClusterSystems.slurm)
+        checkAndPossiblyRunJobWithPipedScript(ClusterScheduler.SLURM)
     }
 
     /**
@@ -276,24 +272,24 @@ class BEIntegrationTest {
     @Test
     void testLsfRestMultipleJobsWithPipedScript() {
         if ((properties["lsfrest.password"] as String).isEmpty()) return
-        checkAndPossiblyRunMultipleJobsWithPipedScript(AvailableClusterSystems.lsfrest)
+        checkAndPossiblyRunMultipleJobsWithPipedScript(ClusterScheduler.LSF_REST)
     }
 
     @Test
     void testLsfRestJobWithPipedScript() {
         if ((properties["lsfrest.password"] as String).isEmpty()) return
-        checkAndPossiblyRunJobWithPipedScript(AvailableClusterSystems.lsfrest)
+        checkAndPossiblyRunJobWithPipedScript(ClusterScheduler.LSF_REST)
     }
 
     @Test
     void testLsfRestMultipleJobsWithFile() {
         if ((properties["lsfrest.password"] as String).isEmpty()) return
-        checkAndPossiblyRunMultipleJobsWithFile(AvailableClusterSystems.lsfrest)
+        checkAndPossiblyRunMultipleJobsWithFile(ClusterScheduler.LSF_REST)
     }
 
     @Test
     void testLsfRestJobWithFile() {
         if ((properties["lsfrest.password"] as String).isEmpty()) return
-        checkAndPossiblyRunJobWithFile(AvailableClusterSystems.lsfrest)
+        checkAndPossiblyRunJobWithFile(ClusterScheduler.LSF_REST)
     }
 }

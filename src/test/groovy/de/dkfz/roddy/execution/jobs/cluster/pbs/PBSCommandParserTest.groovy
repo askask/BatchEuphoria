@@ -8,6 +8,7 @@ package de.dkfz.roddy.execution.jobs.cluster.pbs
 
 import de.dkfz.roddy.execution.BEExecutionService
 import de.dkfz.roddy.execution.io.ExecutionResult
+import de.dkfz.roddy.execution.jobs.BEJobID
 import de.dkfz.roddy.execution.jobs.BatchEuphoriaJobManager
 import de.dkfz.roddy.execution.jobs.Command
 import de.dkfz.roddy.execution.jobs.JobManagerOptions
@@ -89,15 +90,13 @@ class PBSCommandParserTest {
         assert commandParser.parameters  == ["PARAMETER_FILE":"/data/michael/temp/roddyLocalTest/testproject/rpp/A100/roddyExecutionStore/exec_170402_171935425_heinold_indelCalling/r170402_171935425_A100_indelCalling_1.parameters"]
         assert commandParser.dependencies == ["120015"]
 
-        def gji = testJobManager.parseGenericJobInfo(commandString)
+        def gji = testJobManager.parseJobInfo(commandString)
         assert gji.jobName == "r170402_171935425_A100_indelCalling"
-        assert gji.askedResources.getCores() == 8
-        assert gji.askedResources.getNodes() == 1
-        assert gji.askedResources.getWalltime() == Duration.ofDays(2).plusHours(2)
-        assert gji.askedResources.getMem().toLong() == 16384
-        assert gji.parameters  == ["PARAMETER_FILE":"/data/michael/temp/roddyLocalTest/testproject/rpp/A100/roddyExecutionStore/exec_170402_171935425_heinold_indelCalling/r170402_171935425_A100_indelCalling_1.parameters"]
-        assert gji.parentJobIDs == ["120015"]
+        assert gji.requestedResources.getCores() == 8
+        assert gji.requestedResources.getNodes() == 1
+        assert gji.requestedResources.getWalltime() == Duration.ofDays(2).plusHours(2)
+        assert gji.requestedResources.getMem().toLong() == 16384
+        assert gji.environment  == ["PARAMETER_FILE":"/data/michael/temp/roddyLocalTest/testproject/rpp/A100/roddyExecutionStore/exec_170402_171935425_heinold_indelCalling/r170402_171935425_A100_indelCalling_1.parameters"]
+        assert gji.dependencies == [new BEJobID("120015")]
     }
-
-
 }

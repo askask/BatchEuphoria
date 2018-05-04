@@ -38,8 +38,8 @@ class LSFJobManager extends AbstractLSFJobManager {
     }
 
     @Override
-    Map<BEJobID, GenericJobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
-        Map<BEJobID, GenericJobInfo> queriedExtendedStates = [:]
+    Map<BEJobID, JobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
+        Map<BEJobID, JobInfo> queriedExtendedStates = [:]
         for (BEJobID id : jobIds) {
             Map<String, String> jobDetails = runBjobs([id]).get(id)
             queriedExtendedStates.put(id, queryJobInfo(jobDetails))
@@ -74,8 +74,8 @@ class LSFJobManager extends AbstractLSFJobManager {
     }
 
     @Override
-    GenericJobInfo parseGenericJobInfo(String commandString) {
-        return new LSFCommandParser(commandString).toGenericJobInfo();
+    JobInfo parseJobInfo(String commandString) {
+        return new LSFCommandParser(commandString).toJobInfo();
     }
 
     protected Map<BEJobID, JobState> queryJobStates(List<BEJobID> jobIDs) {

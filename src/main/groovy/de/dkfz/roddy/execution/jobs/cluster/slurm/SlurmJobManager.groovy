@@ -13,7 +13,7 @@ import de.dkfz.roddy.execution.io.ExecutionResult
 import de.dkfz.roddy.execution.jobs.BEJob
 import de.dkfz.roddy.execution.jobs.BEJobID
 import de.dkfz.roddy.execution.jobs.Command
-import de.dkfz.roddy.execution.jobs.GenericJobInfo
+import de.dkfz.roddy.execution.jobs.JobInfo
 import de.dkfz.roddy.execution.jobs.JobManagerOptions
 import de.dkfz.roddy.execution.jobs.JobState
 import de.dkfz.roddy.execution.jobs.cluster.ClusterJobManager
@@ -68,7 +68,7 @@ class SlurmJobManager extends GridEngineBasedJobManager {
     }
 
     @Override
-    GenericJobInfo parseGenericJobInfo(String command) {
+    JobInfo parseJobInfo(String command) {
         return null
     }
 

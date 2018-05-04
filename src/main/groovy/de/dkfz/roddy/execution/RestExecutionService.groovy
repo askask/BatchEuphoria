@@ -87,6 +87,7 @@ class RestExecutionService implements BEExecutionService {
         this.BASE_URL = baseURL
         this.username = username
         this.password = password
+        logger.
 
         if (isAvailable())
             logon(username, password)

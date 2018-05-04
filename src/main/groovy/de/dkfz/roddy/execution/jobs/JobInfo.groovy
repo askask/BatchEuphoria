@@ -7,6 +7,7 @@ package de.dkfz.roddy.execution.jobs
 
 import de.dkfz.roddy.config.ResourceSet
 import groovy.transform.CompileStatic
+import groovy.transform.EqualsAndHashCode
 import groovy.transform.Immutable
 import groovy.transform.ToString
 import groovy.transform.TupleConstructor
@@ -19,8 +20,13 @@ import java.time.LocalDateTime
  */
 @CompileStatic
 @ToString(includeNames=true)
-@TupleConstructor
-@Immutable
+/*@ToString
+@EqualsAndHashCode
+@ImmutableBase
+@KnownImmutable
+@MapConstructor
+@TupleConstructor*/
+@Immutable(knownImmutableClasses = [File, LocalDateTime, LocalDateTime, Duration, BEJobID, ResourceSet])
 class JobInfo {
     final String jobName
     final File tool
@@ -28,12 +34,16 @@ class JobInfo {
     final Map<String, String> environment
     final Set<BEJobID> dependencies
 
-    final ResourceSet askedResources
+    final ResourceSet requestedResources
     final ResourceSet usedResources
 
+    /** The time that the job entered the current queue. */
     final LocalDateTime submitTime
-    final LocalDateTime eligibleTime // when all conditions like job dependencies full filled, it is qu
+    /** The time that the job became eligible to run when all conditions like job dependencies full filled, i.e. in a queued state while residing in an execution queue. */
+    final LocalDateTime eligibleTime
+    /** The timepoint the job was started. */
     final LocalDateTime startTime
+    /** The timepoint the job was completed. */
     final LocalDateTime endTime
 
     final List<String> executionHosts

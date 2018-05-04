@@ -14,7 +14,7 @@ import static de.dkfz.roddy.StringConstants.SPLIT_COMMA
 import static de.dkfz.roddy.StringConstants.SPLIT_EQUALS
 
 /**
- * Used to convert commands from cli to e.g. GenericJobInfo
+ * Used to convert commands from cli to e.g. JobInfo
  * Created by kaercher on 15.05.17.
  */
 @CompileStatic
@@ -123,17 +123,17 @@ class LSFCommandParser {
         }
     }
 
-    JobInfo toGenericJobInfo() {
+    JobInfo toJobInfo() {
         ResourceSet askedResources = new ResourceSet(null, memory ? new BufferValue(memory as Integer, bufferUnit) : null,
                 cores ? cores as Integer : null, nodes ? nodes as Integer : null, walltime ? new TimeUnit(walltime) : null,
                 null, null, null)
         return new JobInfo(
-                jobName,
-                new File(script),
-                jobID,
-                parameters,
-                dependencies,
-                askedResources,
+                jobName: jobName,
+                tool: new File(script),
+                jobID: jobID,
+                environment: parameters,
+                dependencies: dependencies.collect { new BEJobID(it) },
+                requestedResources: askedResources,
         )
     }
 }

@@ -9,7 +9,6 @@ package de.dkfz.roddy.execution.jobs.cluster.pbs
 import de.dkfz.roddy.BEException
 import de.dkfz.roddy.config.ResourceSet
 import de.dkfz.roddy.execution.jobs.BEJobID
-import de.dkfz.roddy.execution.jobs.GenericJobInfo
 import de.dkfz.roddy.execution.jobs.JobInfo
 import de.dkfz.roddy.tools.BufferUnit
 import de.dkfz.roddy.tools.BufferValue
@@ -22,7 +21,7 @@ import static de.dkfz.roddy.StringConstants.SPLIT_COMMA
 import static de.dkfz.roddy.StringConstants.SPLIT_EQUALS
 
 /**
- * Used to convert commands from cli to e.g. GenericJobInfo
+ * Used to convert commands from cli to e.g. JobInfo
  * Created by heinold on 04.04.17.
  */
 @CompileStatic
@@ -131,17 +130,17 @@ class PBSCommandParser {
         }
     }
 
-    JobInfo toGenericJobInfo() {
+    JobInfo toJobInfo() {
         ResourceSet askedResources = new ResourceSet(null, memory ? new BufferValue(memory as Integer, bufferUnit) : null,
                 cores ? cores as Integer : null, nodes ? nodes as Integer : null, walltime ? new TimeUnit(walltime) : null,
                 null, null, null)
         return new JobInfo(
-                jobName,
-                new File(script),
-                jobID,
-                parameters,
-                dependencies,
-                askedResources,
+                jobName: jobName,
+                tool: new File(script),
+                jobID: jobID,
+                environment: parameters,
+                dependencies: dependencies.collect { new BEJobID(it) },
+                requestedResources: askedResources,
         )
     }
 }

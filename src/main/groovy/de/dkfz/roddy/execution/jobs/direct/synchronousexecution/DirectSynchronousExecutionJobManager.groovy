@@ -34,7 +34,7 @@ class DirectSynchronousExecutionJobManager extends BatchEuphoriaJobManager<Direc
     }
 
     @Override
-    GenericJobInfo parseGenericJobInfo(String command) {
+    JobInfo parseJobInfo(String command) {
         return null
     }
 
@@ -165,7 +165,7 @@ class DirectSynchronousExecutionJobManager extends BatchEuphoriaJobManager<Direc
     }
 
     @Override
-    Map<BEJobID, GenericJobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
+    Map<BEJobID, JobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
         return [:]
     }
 }

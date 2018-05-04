@@ -7,7 +7,7 @@
 package de.dkfz.roddy.execution.jobs.cluster.lsf
 
 import de.dkfz.roddy.TestExecutionService
-import de.dkfz.roddy.execution.jobs.GenericJobInfo
+import de.dkfz.roddy.execution.jobs.JobInfo
 import de.dkfz.roddy.execution.jobs.JobManagerOptions
 import groovy.json.JsonSlurper
 import spock.lang.Specification
@@ -117,7 +117,7 @@ class LSFJobManagerSpec extends Specification {
         List records = (List) parsedJson.getAt("RECORDS")
 
         when:
-        GenericJobInfo jobInfo = method.invoke(jm, records.get(0))
+        JobInfo jobInfo = method.invoke(jm, records.get(0))
 
         then:
         jobInfo != null
@@ -136,7 +136,7 @@ class LSFJobManagerSpec extends Specification {
         List records = (List) parsedJson.getAt("RECORDS")
 
         when:
-        GenericJobInfo jobInfo = method.invoke(jm, records.get(0))
+        JobInfo jobInfo = method.invoke(jm, records.get(0))
 
         then:
         jobInfo != null
@@ -166,7 +166,7 @@ class LSFJobManagerSpec extends Specification {
         List records = (List) parsedJson.getAt("RECORDS")
 
         when:
-        GenericJobInfo jobInfo = method.invoke(jm, records.get(0))
+        JobInfo jobInfo = method.invoke(jm, records.get(0))
 
         then:
         jobInfo.jobID.toString() == "22005"

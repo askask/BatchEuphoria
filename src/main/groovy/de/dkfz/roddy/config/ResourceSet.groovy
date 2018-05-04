@@ -4,6 +4,7 @@ import de.dkfz.roddy.tools.BufferValue
 import de.dkfz.roddy.tools.RoddyConversionHelperMethods
 import de.dkfz.roddy.tools.TimeUnit
 import groovy.transform.CompileStatic
+import groovy.transform.Immutable
 
 import java.time.Duration
 

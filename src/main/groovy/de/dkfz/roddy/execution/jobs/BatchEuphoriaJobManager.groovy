@@ -190,11 +190,11 @@ abstract class BatchEuphoriaJobManager<C extends Command> {
      * @param jobs
      * @return
      */
-    Map<BEJob, GenericJobInfo> queryExtendedJobState(List<BEJob> jobs) {
+    Map<BEJob, JobInfo> queryExtendedJobState(List<BEJob> jobs) {
 
-        Map<BEJobID, GenericJobInfo> queriedExtendedStates = queryExtendedJobStateById(jobs.collect { it.getJobID() })
-        return (Map<BEJob, GenericJobInfo>) queriedExtendedStates.collectEntries {
-            Map.Entry<BEJobID, GenericJobInfo> it -> [jobs.find { BEJob temp -> temp.getJobID() == it.key }, (GenericJobInfo) it.value]
+        Map<BEJobID, JobInfo> queriedExtendedStates = queryExtendedJobStateById(jobs.collect { it.getJobID() })
+        return (Map<BEJob, JobInfo>) queriedExtendedStates.collectEntries {
+            Map.Entry<BEJobID, JobInfo> it -> [jobs.find { BEJob temp -> temp.getJobID() == it.key }, (JobInfo) it.value]
         }
     }
 
@@ -207,7 +207,7 @@ abstract class BatchEuphoriaJobManager<C extends Command> {
      * @param jobIds
      * @return
      */
-    abstract Map<BEJobID, GenericJobInfo> queryExtendedJobStateById(List<BEJobID> jobIds)
+    abstract Map<BEJobID, JobInfo> queryExtendedJobStateById(List<BEJobID> jobIds)
 
     void addToListOfStartedJobs(BEJob job) {
         if (updateDaemonThread) {
@@ -292,7 +292,7 @@ abstract class BatchEuphoriaJobManager<C extends Command> {
      * @param commandString
      * @return
      */
-    abstract GenericJobInfo parseGenericJobInfo(String command)
+    abstract JobInfo parseJobInfo(String command)
 
     protected List<BEJobID> collectJobIDsFromJobs(List<BEJob> jobs) {
         BEJob.jobsWithUniqueValidJobId(jobs).collect { it.runResult.getJobID() }

@@ -127,7 +127,7 @@ class LSFRestJobManager extends AbstractLSFJobManager {
 
 
     @Override
-    GenericJobInfo parseGenericJobInfo(String command) {
+    JobInfo parseJobInfo(String command) {
         return null
     }
 
@@ -264,9 +264,9 @@ class LSFRestJobManager extends AbstractLSFJobManager {
      * Updates job information for given jobs
      * @param jobList
      */
-    private Map<BEJobID, GenericJobInfo> getJobDetails(List<BEJobID> jobList) {
+    private Map<BEJobID, JobInfo> getJobDetails(List<BEJobID> jobList) {
         List<Header> headers = []
-        Map<BEJobID, GenericJobInfo> jobDetailsResult = [:]
+        Map<BEJobID, JobInfo> jobDetailsResult = [:]
         headers.add(new BasicHeader("Accept", "text/xml,application/xml;"))
 
         RestResult result = restExecutionService.execute(new RestCommand(URI_JOB_DETAILS + prepareURLWithParam(jobList), null, headers, RestCommand.HttpMethod.HTTPGET)) as RestResult
@@ -322,10 +322,7 @@ class LSFRestJobManager extends AbstractLSFJobManager {
      * @param job
      * @param jobDetails - XML job details
      */
-    private GenericJobInfo setJobInfoForJobDetails(NodeChild jobDetails) {
-
-        GenericJobInfo jobInfo = new GenericJobInfo(jobDetails.getProperty("jobName").toString(), new File(jobDetails.getProperty("command").toString()), new BEJobID(jobDetails.getProperty("jobId").toString()), null, null)
-
+    private JobInfo setJobInfoForJobDetails(NodeChild jobDetails) {
         String queue = jobDetails.getProperty("queue").toString()
         BufferValue swap = jobDetails.getProperty("swap") ? catchAndLogExceptions { new BufferValue(jobDetails.getProperty("swap").toString(), BufferUnit.m) } : null
         BufferValue memory = catchAndLogExceptions {
@@ -341,36 +338,59 @@ class LSFRestJobManager extends AbstractLSFJobManager {
         Integer numProcessors = catchAndLogExceptions { jobDetails.getProperty("numProcessors").toString() as Integer }
         Integer numberOfThreads = catchAndLogExceptions { jobDetails.getProperty("nthreads").toString() as Integer }
         ResourceSet usedResources = new ResourceSet(memory, numProcessors, null, runLimit, null, queue, null)
-        jobInfo.setUsedResources(usedResources)
 
         DateTimeFormatter lsfDatePattern = catchAndLogExceptions { DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ").withLocale(Locale.ENGLISH) }
-        jobInfo.setUser(jobDetails.getProperty("user").toString())
-        jobInfo.setSystemTime(jobDetails.getProperty("getSystemTime").toString())
-        jobInfo.setUserTime(jobDetails.getProperty("getUserTime").toString())
-        jobInfo.setStartTime(!jobDetails.getProperty("startTime").toString().equals("") ? catchAndLogExceptions { LocalDateTime.parse(jobDetails.getProperty("startTime").toString(), lsfDatePattern) } : null)
-        jobInfo.setSubmitTime(jobDetails.getProperty("submitTime").toString().equals("") ? catchAndLogExceptions { LocalDateTime.parse(jobDetails.getProperty("submitTime").toString(), lsfDatePattern) } : null)
-        jobInfo.setEndTime(!jobDetails.getProperty("endTime").toString().equals("") ? catchAndLogExceptions { LocalDateTime.parse(jobDetails.getProperty("endTime").toString(), lsfDatePattern) } : null)
-        jobInfo.setExecutionHosts(jobDetails.getProperty("exHosts") as String ? (jobDetails.getProperty("exHosts") as String).split(":").toList() : null)
-        jobInfo.setSubmissionHost(jobDetails.getProperty("fromHost").toString())
-        jobInfo.setJobGroup(jobDetails.getProperty("jobGroup").toString())
-        jobInfo.setDescription(jobDetails.getProperty("description").toString())
-        jobInfo.setUserGroup(jobDetails.getProperty("userGroup").toString())
-        jobInfo.setRunTime(jobDetails.getProperty("runTime") ? catchAndLogExceptions { Duration.ofSeconds(Math.round(Double.parseDouble(jobDetails.getProperty("runTime").toString()))) } : null)
-        jobInfo.setProjectName(jobDetails.getProperty("projectName").toString())
-        jobInfo.setExitCode(jobDetails.getProperty("exitStatus").toString() ? catchAndLogExceptions { Integer.valueOf(jobDetails.getProperty("exitStatus").toString()) } : null)
-        jobInfo.setPidStr(jobDetails.getProperty("pidStr") as String ? (jobDetails.getProperty("pidStr") as String).split(",").toList() : null)
-        jobInfo.setPgidStr(jobDetails.getProperty("pgidStr").toString())
-        jobInfo.setCwd(jobDetails.getProperty("cwd").toString())
-        jobInfo.setPendReason(jobDetails.getProperty("pendReason").toString())
-        jobInfo.setExecCwd(jobDetails.getProperty("execCwd").toString())
-        jobInfo.setPriority(jobDetails.getProperty("priority").toString())
-        jobInfo.setLogFile(new File(jobDetails.getProperty("outFile").toString()))
-        jobInfo.setInputFile(new File(jobDetails.getProperty("inFile").toString()))
-        jobInfo.setResourceReq(jobDetails.getProperty("resReq").toString())
-        jobInfo.setExecHome(jobDetails.getProperty("execHome").toString())
-        jobInfo.setExecUserName(jobDetails.getProperty("execUserName").toString())
-        jobInfo.setAskedHostsStr(jobDetails.getProperty("askedHostsStr").toString())
 
+        JobInfo jobInfo = new JobInfo(
+                jobDetails.getProperty("jobName").toString(),
+                new File(jobDetails.getProperty("command").toString()),
+                new BEJobID(jobDetails.getProperty("jobId").toString()),
+                null,
+                null,
+                null,
+                usedResources,
+                jobDetails.getProperty("submitTime").toString().equals("") ? catchAndLogExceptions { LocalDateTime.parse(jobDetails.getProperty("submitTime").toString(), lsfDatePattern) } : null,
+                null,
+                !jobDetails.getProperty("startTime").toString().equals("") ? catchAndLogExceptions { LocalDateTime.parse(jobDetails.getProperty("startTime").toString(), lsfDatePattern) } : null,
+                !jobDetails.getProperty("endTime").toString().equals("") ? catchAndLogExceptions { LocalDateTime.parse(jobDetails.getProperty("endTime").toString(), lsfDatePattern) } : null,
+                jobDetails.getProperty("exHosts") as String ? (jobDetails.getProperty("exHosts") as String).split(":").toList() : null,
+                jobDetails.getProperty("fromHost").toString(),
+                jobDetails.getProperty("priority").toString(),
+                new File(jobDetails.getProperty("outFile").toString()),
+                null,
+                new File(jobDetails.getProperty("inFile").toString()),
+                jobDetails.getProperty("user").toString(),
+                jobDetails.getProperty("userGroup").toString(),
+                jobDetails.getProperty("resReq").toString(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                jobDetails.getProperty("getUserTime").toString(),
+                jobDetails.getProperty("getSystemTime").toString(),
+                jobDetails.getProperty("pendReason").toString(),
+                jobDetails.getProperty("execHome").toString(),
+                jobDetails.getProperty("execUserName").toString(),
+                jobDetails.getProperty("pidStr") as String ? (jobDetails.getProperty("pidStr") as String).split(",").toList() : null,
+                jobDetails.getProperty("pgidStr").toString(),
+                jobDetails.getProperty("exitStatus").toString() ? catchAndLogExceptions { Integer.valueOf(jobDetails.getProperty("exitStatus").toString()) } : null,
+                jobDetails.getProperty("jobGroup").toString(),
+                jobDetails.getProperty("description").toString(),
+                jobDetails.getProperty("execCwd").toString(),
+                jobDetails.getProperty("askedHostsStr").toString(),
+                jobDetails.getProperty("cwd").toString(),
+                jobDetails.getProperty("projectName").toString(),
+                null,
+                jobDetails.getProperty("runTime") ? catchAndLogExceptions { Duration.ofSeconds(Math.round(Double.parseDouble(jobDetails.getProperty("runTime").toString()))) } : null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+        )
         return jobInfo
     }
 
@@ -378,7 +398,7 @@ class LSFRestJobManager extends AbstractLSFJobManager {
      * Get the time history for each given job
      * @param jobList
      */
-    private void updateJobStatistics(Map<BEJobID, GenericJobInfo> jobList) {
+    private void updateJobStatistics(Map<BEJobID, JobInfo> jobList) {
         List<Header> headers = []
         headers.add(new BasicHeader("Accept", "text/xml,application/xml;"))
 
@@ -402,7 +422,7 @@ class LSFRestJobManager extends AbstractLSFJobManager {
      * @param job
      * @param jobHistory - xml job history
      */
-    private void setJobInfoFromJobHistory(GenericJobInfo jobInfo, NodeChild jobHistory) {
+    private void setJobInfoFromJobHistory(JobInfo jobInfo, NodeChild jobHistory) {
 
         GPathResult timeSummary = jobHistory.getProperty("timeSummary") as GPathResult
         DateTimeFormatter lsfDatePattern = DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy").withLocale(Locale.ENGLISH)
@@ -417,8 +437,8 @@ class LSFRestJobManager extends AbstractLSFJobManager {
     }
 
     @Override
-    Map<BEJobID, GenericJobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
-        Map<BEJobID, GenericJobInfo> jobDetailsResult = getJobDetails(jobIds)
+    Map<BEJobID, JobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
+        Map<BEJobID, JobInfo> jobDetailsResult = getJobDetails(jobIds)
         updateJobStatistics(jobDetailsResult)
         return jobDetailsResult
     }

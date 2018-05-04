@@ -40,8 +40,8 @@ class PBSJobManager extends GridEngineBasedJobManager<PBSCommand> {
     }
 
     @Override
-    GenericJobInfo parseGenericJobInfo(String commandString) {
-        return new PBSCommandParser(commandString).toGenericJobInfo();
+    JobInfo parseJobInfo(String commandString) {
+        return new PBSCommandParser(commandString).toJobInfo();
     }
 
     /**

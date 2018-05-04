@@ -8,7 +8,7 @@ package de.dkfz.roddy.execution.jobs.cluster.pbs
 
 import de.dkfz.roddy.TestExecutionService
 import de.dkfz.roddy.execution.jobs.BEJobID
-import de.dkfz.roddy.execution.jobs.GenericJobInfo
+import de.dkfz.roddy.execution.jobs.JobInfo
 import de.dkfz.roddy.execution.jobs.JobManagerOptions
 import de.dkfz.roddy.execution.jobs.JobState
 import de.dkfz.roddy.execution.jobs.cluster.ClusterJobManager
@@ -21,8 +21,31 @@ import java.lang.reflect.Method
 import java.time.Duration
 import java.time.LocalDateTime
 
+
+
+
+
 class PBSJobManagerSpec extends Specification {
     PBSJobManager manager
+def fail = """
+qstat -t -u bq_otp-data 
+111
+
+Unable to communicate with pbsserver(129.206.243.184)
+Unable to communicate with pbsserver(129.206.243.184)
+Cannot connect to specified server host 'pbsserver'.
+Unable to communicate with pbsserver(129.206.243.184)
+Unable to communicate with pbsserver(129.206.243.184)
+Cannot connect to specified server host 'pbsserver'.
+Unable to communicate with pbsserver(129.206.243.184)
+Unable to communicate with pbsserver(129.206.243.184)
+Cannot connect to specified server host 'pbsserver'.
+qstat: cannot connect to server pbsserver (errno=111) Connection refused
+
+
+
+
+"""
 
     String rawXmlExample = '''
     <Data>
@@ -98,21 +121,21 @@ Output retained on that host in: /var/spool/torque/undelivered/4564045.pbsserver
 
     void test2() {
         when:
-        Map<BEJobID, GenericJobInfo> result = manager.processQstatOutput(xml2)
+        Map<BEJobID, JobInfo> result = manager.processQstatOutput(xml2)
 
         then:
         result.size() == 1
-        GenericJobInfo jobInfo = result.get(new BEJobID("4499334"))
+        JobInfo jobInfo = result.get(new BEJobID("4499334"))
         jobInfo
-        jobInfo.askedResources.size == null
-        jobInfo.askedResources.mem == new BufferValue(37888, BufferUnit.M)
-        jobInfo.askedResources.cores == 4
-        jobInfo.askedResources.nodes == 1
-        jobInfo.askedResources.walltime == Duration.ofHours(5)
-        jobInfo.askedResources.storage == null
-        jobInfo.askedResources.queue == "otp"
-        jobInfo.askedResources.nthreads == null
-        jobInfo.askedResources.swap == null
+        jobInfo.requestedResources.size == null
+        jobInfo.requestedResources.mem == new BufferValue(37888, BufferUnit.M)
+        jobInfo.requestedResources.cores == 4
+        jobInfo.requestedResources.nodes == 1
+        jobInfo.requestedResources.walltime == Duration.ofHours(5)
+        jobInfo.requestedResources.storage == null
+        jobInfo.requestedResources.queue == "otp"
+        jobInfo.requestedResources.nthreads == null
+        jobInfo.requestedResources.swap == null
         jobInfo.usedResources.size == null
         jobInfo.usedResources.mem == null
         jobInfo.usedResources.cores == null
@@ -218,21 +241,21 @@ Output retained on that host in: /var/spool/torque/undelivered/4564045.pbsserver
 
     void "test, finished, with newline"() {
         when:
-        Map<BEJobID, GenericJobInfo> result = manager.processQstatOutput(xmlWithNewLine)
+        Map<BEJobID, JobInfo> result = manager.processQstatOutput(xmlWithNewLine)
 
         then:
         result.size() == 1
-        GenericJobInfo jobInfo = result.get(new BEJobID("4564045"))
+        JobInfo jobInfo = result.get(new BEJobID("4564045"))
         jobInfo
-        jobInfo.askedResources.size == null
-        jobInfo.askedResources.mem == new BufferValue(1024, BufferUnit.M)
-        jobInfo.askedResources.cores == 1
-        jobInfo.askedResources.nodes == 1
-        jobInfo.askedResources.walltime == Duration.ofHours(4)
-        jobInfo.askedResources.storage == null
-        jobInfo.askedResources.queue == "otp"
-        jobInfo.askedResources.nthreads == null
-        jobInfo.askedResources.swap == null
+        jobInfo.requestedResources.size == null
+        jobInfo.requestedResources.mem == new BufferValue(1024, BufferUnit.M)
+        jobInfo.requestedResources.cores == 1
+        jobInfo.requestedResources.nodes == 1
+        jobInfo.requestedResources.walltime == Duration.ofHours(4)
+        jobInfo.requestedResources.storage == null
+        jobInfo.requestedResources.queue == "otp"
+        jobInfo.requestedResources.nthreads == null
+        jobInfo.requestedResources.swap == null
 
         jobInfo.usedResources.size == null
         jobInfo.usedResources.mem == new BufferValue(6064, BufferUnit.k)
@@ -377,7 +400,7 @@ Output retained on that host in: /var/spool/torque/undelivered/4564045.pbsserver
         '''
 
         when:
-        Map<BEJobID, GenericJobInfo> jobInfo = manager.processQstatOutputFromXML(rawXMLOutput)
+        Map<BEJobID, JobInfo> jobInfo = manager.processQstatOutputFromXML(rawXMLOutput)
 
         then:
         jobInfo.size() == 1
@@ -385,7 +408,7 @@ Output retained on that host in: /var/spool/torque/undelivered/4564045.pbsserver
 
     void "processQstatOutput, qstat with XML output"() {
         when:
-        Map<BEJobID, GenericJobInfo> jobInfo = manager.processQstatOutputFromXML(rawXmlExample)
+        Map<BEJobID, JobInfo> jobInfo = manager.processQstatOutputFromXML(rawXmlExample)
 
         then:
         jobInfo.size() == 1
@@ -406,7 +429,7 @@ Output retained on that host in: /var/spool/torque/undelivered/4564045.pbsserver
     '''
 
         when:
-        Map<BEJobID, GenericJobInfo> jobInfo = manager.processQstatOutputFromXML(rawXMLOutput)
+        Map<BEJobID, JobInfo> jobInfo = manager.processQstatOutputFromXML(rawXMLOutput)
 
         then:
         jobInfo.size() == 1

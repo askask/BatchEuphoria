@@ -8,6 +8,7 @@ import de.dkfz.roddy.execution.io.ExecutionResult
 import de.dkfz.roddy.execution.jobs.BEJobID
 import de.dkfz.roddy.execution.jobs.Command
 import de.dkfz.roddy.execution.jobs.GenericJobInfo
+import de.dkfz.roddy.execution.jobs.JobInfo
 import de.dkfz.roddy.execution.jobs.JobManagerOptions
 import de.dkfz.roddy.execution.jobs.JobState
 import de.dkfz.roddy.tools.BufferUnit
@@ -90,8 +91,8 @@ abstract class GridEngineBasedJobManager<C extends Command> extends ClusterJobMa
     }
 
     @Override
-    Map<BEJobID, GenericJobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
-        Map<BEJobID, GenericJobInfo> queriedExtendedStates
+    Map<BEJobID, JobInfo> queryExtendedJobStateById(List<BEJobID> jobIds) {
+        Map<BEJobID, JobInfo> queriedExtendedStates
         String qStatCommand = getExtendedQueryJobStatesCommand()
         qStatCommand += " " + jobIds.collect { it }.join(" ")
 
@@ -153,12 +154,12 @@ abstract class GridEngineBasedJobManager<C extends Command> extends ClusterJobMa
     }
 
     /**
-     * Reads the qstat output and creates GenericJobInfo objects
+     * Reads the qstat output and creates JobInfo objects
      * @param resultLines - Input of ExecutionResult object
      * @return map with jobid as key
      */
-    protected Map<BEJobID, GenericJobInfo> processQstatOutputFromXML(String result) {
-        Map<BEJobID, GenericJobInfo> queriedExtendedStates = [:]
+    protected Map<BEJobID, JobInfo> processQstatOutputFromXML(String result) {
+        Map<BEJobID, JobInfo> queriedExtendedStates = [:]
         if (result.isEmpty()) {
             return [:]
         }
@@ -173,13 +174,12 @@ abstract class GridEngineBasedJobManager<C extends Command> extends ClusterJobMa
             } catch (Exception exp) {
                 throw new BEException("Job ID '${jobIdRaw}' could not be transformed to BEJobID ")
             }
-            List<String> jobDependencies = (job["depend"] as GPathResult).isEmpty() ?
+            Set<BEJobID> jobDependencies = (job["depend"] as GPathResult).isEmpty() ?
                     (job["depend"] as  String).find("afterok.*")?.findAll(/(\d+).(\w+)/) {
                         fullMatch, String beforeDot, afterDot -> return beforeDot
                     } :
                     null
             String jobName = job["Job_Name"] as String ?: null
-            GenericJobInfo gj = new GenericJobInfo(jobName, null, jobID, null, jobDependencies)
 
             BufferValue mem = null
             Integer cores
@@ -213,36 +213,61 @@ abstract class GridEngineBasedJobManager<C extends Command> extends ClusterJobMa
             if (!(resourcesUsedWalltime as GPathResult).isEmpty())
                 catchAndLogExceptions { usedWalltime = new TimeUnit(resourcesUsedWalltime as String) }
 
-            gj.setAskedResources(new ResourceSet(null, mem, cores, nodes, walltime, null, job["queue"] as String ?: null, additionalNodeFlag))
-            gj.setUsedResources(new ResourceSet(null, usedMem, null, null, usedWalltime, null, job["queue"] as String ?: null, null))
+            ResourceSet requested = new ResourceSet(null, mem, cores, nodes, walltime, null, job["queue"] as String ?: null, additionalNodeFlag)
+            ResourceSet used = new ResourceSet(null, usedMem, null, null, usedWalltime, null, job["queue"] as String ?: null, null)
 
-            gj.setLogFile(getQstatFile((job["Output_Path"] as String).replace("\$PBS_JOBID", jobIdRaw)))
-            gj.setErrorLogFile(getQstatFile((job["Error_Path"] as String).replace("\$PBS_JOBID", jobIdRaw)))
-            gj.setUser(job["euser"] as String ?: null)
-            gj.setExecutionHosts(job["exec_host"] as String ? [job["exec_host"] as String] : null)
-            gj.setSubmissionHost(job["submit_host"] as String ?: null)
-            gj.setPriority(job["Priority"] as String ?: null)
-            gj.setUserGroup(job["egroup"] as String ?: null)
-            gj.setResourceReq(job["submit_args"] as String ?: null)
-            gj.setRunTime(job["total_runtime"] ? catchAndLogExceptions { Duration.ofSeconds(Math.round(Double.parseDouble(job["total_runtime"] as String)), 0) } : null)
-            gj.setCpuTime(job["resources_used"]["cput"] ? catchAndLogExceptions { parseColonSeparatedHHMMSSDuration(job["resources_used"]["cput"] as String) } : null)
-            gj.setServer(job["server"] as String ?: null)
-            gj.setUmask(job["umask"] as String ?: null)
-            gj.setJobState(parseJobState(job["job_state"] as String))
-            gj.setExitCode(job["exit_status"] ? catchAndLogExceptions { Integer.valueOf(job["exit_status"] as String) }: null )
-            gj.setAccount(job["Account_Name"] as String ?: null)
-            gj.setStartCount(job["start_count"] ? catchAndLogExceptions { Integer.valueOf(job["start_count"] as String) } : null)
+            JobInfo jobInfo = new JobInfo(
+                    jobName,
+                    null,
+                    jobID,
+                    null,
+                    jobDependencies,
+                    requested,
+                    used,
+                    job["qtime"] ? (parseTime(job["qtime"] as String)) : null,
+                    job["etime"] ? (parseTime(job["etime"] as String)) : null,
+                    job["start_time"] ? parseTime(job["start_time"] as String) : null,
+                    job["comp_time"] ? parseTime(job["comp_time"] as String) : null,
+                    job["exec_host"] as String ? [job["exec_host"] as String] : null, //TODO
+                    job["submit_host"] as String ?: null,
+                    job["Priority"] as String ?: null,
+                    getQstatFile((job["Output_Path"] as String).replace("\$PBS_JOBID", jobIdRaw)),
+                    getQstatFile((job["Error_Path"] as String).replace("\$PBS_JOBID", jobIdRaw)),
+                    null,
+                    job["euser"] as String ?: null,
+                    job["egroup"] as String ?: null,
+                    job["submit_args"] as String ?: null,
+                    job["start_count"] ? catchAndLogExceptions { Integer.valueOf(job["start_count"] as String) } : null,
+                    job["Account_Name"] as String ?: null,
+                    job["server"] as String ?: null,
+                    job["umask"] as String ?: null,
+                    null,
+                    parseJobState(job["job_state"] as String),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    job["exit_status"] ? catchAndLogExceptions { Integer.valueOf(job["exit_status"] as String) }: null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    job["resources_used"]["cput"] ? catchAndLogExceptions { parseColonSeparatedHHMMSSDuration(job["resources_used"]["cput"] as String) } : null,
+                    job["total_runtime"] ? catchAndLogExceptions { Duration.ofSeconds(Math.round(Double.parseDouble(job["total_runtime"] as String)), 0) } : null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+            )
 
-            if (job["qtime"]) // The time that the job entered the current queue.
-                gj.setSubmitTime(parseTime(job["qtime"] as String))
-            if (job["start_time"]) // The timepoint the job was started.
-                gj.setStartTime(parseTime(job["start_time"] as String))
-            if (job["comp_time"])  // The timepoint the job was completed.
-                gj.setEndTime(parseTime(job["comp_time"] as String))
-            if (job["etime"])  // The time that the job became eligible to run, i.e. in a queued state while residing in an execution queue.
-                gj.setEligibleTime(parseTime(job["etime"] as String))
-
-            queriedExtendedStates.put(jobID, gj)
+            queriedExtendedStates.put(jobID, jobInfo)
         }
         return queriedExtendedStates
     }

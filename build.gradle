@@ -60,8 +60,8 @@ dependencies {
     compile group: 'commons-cli', name: 'commons-cli', version: '1.2'
     compile group: 'org.apache.commons', name: 'commons-text', version: '1.1'
     compile 'com.google.guava:guava:23.0'
-    compile 'com.github.eilslabs:RoddyToolLib:master-SNAPSHOT'
-    // compile 'com.github.theroddywms:RoddyToolLib:0.0.4'
+    // change version of RoddyToolLib to a released version when making a release of BE
+    compile 'com.github.eilslabs:RoddyToolLib:95ba74f59a98cd15725484fec00f64ee2ed23b0a'
 }
 
 task writePom {
